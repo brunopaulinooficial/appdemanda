@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demanda de Bairros - Rio de Janeiro</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: url('https://source.unsplash.com/1600x900/?rio-de-janeiro,city') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        input {
+            border: 1px solid #ccc;
+            outline: none;
+        }
+        button {
+            background-color: #007AFF;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button:hover {
+            background-color: #005ecb;
+        }
+        #resultado, .horarios {
+            margin-top: 15px;
+            font-size: 16px;
+        }
+        .destaque {
+            background-color: #fff3cd;
+            padding: 8px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        .pontos {
+            text-align: left;
+            margin-top: 15px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .pontos a {
+            color: #007AFF;
+            text-decoration: none;
+        }
+        .pontos a:hover {
+            text-decoration: underline;
+        }
+        .feedback {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #007AFF;
+            cursor: pointer;
+            padding: 8px;
+            border: 1px solid #007AFF;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        .feedback:hover {
+            background-color: #f0f7ff;
+        }
+        .horarios {
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            margin-top: 20px;
+        }
+        .horario-atual {
+            font-weight: bold;
+            color: #007AFF;
+        }
+        .assinatura {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007AFF;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .ultima-atualizacao {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+        .erro {
+            color: #dc3545;
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #f8d7da;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Procura de Corridas no Rio</h2>
+        <p class="ultima-atualizacao">Última atualização: 19/03/2025</p>
+        <input type="text" id="bairro" placeholder="Digite o nome do bairro">
+        <button onclick="usarLocalizacao()">📍 Usar minha localização</button>
+        <button onclick="verificarDemanda()">Verificar Demanda</button>
+        <p id="erro" class="erro"></p>
+        <p id="resultado"></p>
+        <div id="enderecos" class="pontos"></div>
+        <div id="horario-recomendado"></div>
+        <p class="feedback" onclick="confirmarDemanda()">🚀 Confirmar alta demanda neste local</p>
+        <div class="horarios">
+            <h3>Melhores Horários por Região</h3>
+            <p id="horario-manha">⏰ <strong>Das 5h às 10h</strong> - Bairros Residenciais</p>
+            <p id="horario-almoco">⏰ <strong>Das 12h às 14h</strong> - Regiões de hotéis e empresas</p>
+            <p id="horario-tarde">⏰ <strong>Das 17h às 20h</strong> - Centros Comerciais</p>
+            <p id="horario-noite">⏰ <strong>Das 20h às 23h</strong> - Bairros de vida noturna</p>
+        </div>
+        <p class="assinatura">Desenvolvido por @brunopaulinooficial</p>
+    </div>
+
+    <script>
+        // Dados de bairros e pontos estratégicos
+        const enderecos = {
+            "Irajá": {
+                pontos: [
+                    { nome: "Posto Shell + GNV - (RIO LIMA)", link: "https://maps.app.goo.gl/tP638NkP4trr74mq7" },
+                    { nome: "Praça Mato Grosso", link: "https://maps.app.goo.gl/Zfc8NKzRSZ3mRpV37" },
+                    { nome: "Shopping Irajá", link: "https://maps.app.goo.gl/g9UxpMAYVgNmhKTe9" }
+                ],
+                demanda: {
+                    manha: "Alta",
+                    almoco: "Média",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$40,00/hora",
+                icone: "🚀",
+                tipo: "residencial"
+            },
+            "Ilha do Governador": {
+                pontos: [
+                    { nome: "McDonald's - Ilha do Governador", link: "https://maps.app.goo.gl/dZy7FYRTP2jXKp1S9" },
+                    { nome: "Terminal CCR-Barcas - Praia da Bandeira", link: "https://maps.app.goo.gl/RthqLb4QNpeXZfuu9" },
+                    { nome: "Aeroporto Internacional do Galeão", link: "https://maps.app.goo.gl/LYMbQBxjL1GXkiyx7" }
+                ],
+                demanda: {
+                    manha: "Alta",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$36,00/hora",
+                icone: "🚀",
+                tipo: "misto"
+            },
+            "Jardim Guanabara": {
+                pontos: [
+                    { nome: "Rua Espumas", link: "https://maps.app.goo.gl/iBGTZHgChLpTNMGq6" },
+                    { nome: "Praça Jerusalém", link: "https://maps.app.goo.gl/4Py7fxNexHdYHYdC9" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Baixa",
+                    tarde: "Média",
+                    noite: "Baixa"
+                },
+                preco: "R$32,00/hora",
+                icone: "⚠️",
+                tipo: "residencial"
+            },
+            "Centro": {
+                pontos: [
+                    { nome: "Praça XV", link: "https://maps.app.goo.gl/5HYtQeH5zZEBLhVK6" },
+                    { nome: "Central do Brasil", link: "https://maps.app.goo.gl/7GfNwq6P8hkzTqXj7" },
+                    { nome: "Praça Tiradentes", link: "https://maps.app.goo.gl/kJH5KE8Qo9YnqVX97" }
+                ],
+                demanda: {
+                    manha: "Alta",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Baixa"
+                },
+                preco: "R$45,00/hora",
+                icone: "🚀",
+                tipo: "comercial"
+            },
+            "Copacabana": {
+                pontos: [
+                    { nome: "Praia de Copacabana - Posto 5", link: "https://maps.app.goo.gl/XfGWUjbV9zWXhXEU6" },
+                    { nome: "Forte de Copacabana", link: "https://maps.app.goo.gl/9gJJW5qGC8bSHY3m6" },
+                    { nome: "Rua Barata Ribeiro", link: "https://maps.app.goo.gl/LD9RM8TUf5vGHwUL8" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Alta"
+                },
+                preco: "R$50,00/hora",
+                icone: "🚀",
+                tipo: "turístico"
+            },
+            "Barra da Tijuca": {
+                pontos: [
+                    { nome: "BarraShopping", link: "https://maps.app.goo.gl/VbKLPn8LURZQfGkS9" },
+                    { nome: "Praia da Barra - Posto 3", link: "https://maps.app.goo.gl/YcWNPjL9DFvXBKbM6" },
+                    { nome: "Bosque da Barra", link: "https://maps.app.goo.gl/Lm4WCGFRpqjKAVxq8" }
+                ],
+                demanda: {
+                    manha: "Baixa",
+                    almoco: "Média",
+                    tarde: "Alta",
+                    noite: "Alta"
+                },
+                preco: "R$48,00/hora",
+                icone: "🚀",
+                tipo: "misto"
+            },
+            "Tijuca": {
+                pontos: [
+                    { nome: "Praça Saens Peña", link: "https://maps.app.goo.gl/LRg5AvA2zXw7PfQw6" },
+                    { nome: "Shopping Tijuca", link: "https://maps.app.goo.gl/f6WXhMzUh8a5Jrff9" },
+                    { nome: "Rua Conde de Bonfim", link: "https://maps.app.goo.gl/LUhTZr1XbFsMmSJP8" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Média",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$42,00/hora",
+                icone: "✅",
+                tipo: "residencial"
+            },
+            "Lapa": {
+                pontos: [
+                    { nome: "Arcos da Lapa", link: "https://maps.app.goo.gl/xJhj7YNMp8Jyp3Fy9" },
+                    { nome: "Avenida Mem de Sá", link: "https://maps.app.goo.gl/SqJcY4nQwNfLmhLc9" }
+                ],
+                demanda: {
+                    manha: "Baixa",
+                    almoco: "Média",
+                    tarde: "Média",
+                    noite: "Alta"
+                },
+                preco: "R$45,00/hora",
+                icone: "🚀",
+                tipo: "noturno"
+            },
+            "Ipanema": {
+                pontos: [
+                    { nome: "Praia de Ipanema - Posto 9", link: "https://maps.app.goo.gl/xoXoAMYCw51fZfYGA" },
+                    { nome: "Praça General Osório", link: "https://maps.app.goo.gl/1PQ3qMBJcZxKHNRY7" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Alta"
+                },
+                preco: "R$52,00/hora",
+                icone: "🚀",
+                tipo: "turístico"
+            },
+            "Botafogo": {
+                pontos: [
+                    { nome: "Botafogo Praia Shopping", link: "https://maps.app.goo.gl/Yfm1RcjVPxLwfpAj9" },
+                    { nome: "Praia de Botafogo", link: "https://maps.app.goo.gl/cXwNGSXjEeQ9UhJj9" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$45,00/hora",
+                icone: "✅",
+                tipo: "comercial"
+            },
+            // Novos bairros adicionados
+            "Méier": {
+                pontos: [
+                    { nome: "Shopping do Méier", link: "https://maps.app.goo.gl/4CQxVfN2CTsZJYKr6" },
+                    { nome: "Rua Dias da Cruz", link: "https://maps.app.goo.gl/GTsJa31GHEZzzEXa9" },
+                    { nome: "Jardim do Méier", link: "https://maps.app.goo.gl/15m7FXg4N6r3yPhH8" }
+                ],
+                demanda: {
+                    manha: "Alta",
+                    almoco: "Média",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$38,00/hora",
+                icone: "🚀",
+                tipo: "residencial"
+            },
+            "Madureira": {
+                pontos: [
+                    { nome: "Mercadão de Madureira", link: "https://maps.app.goo.gl/3HLTxWfXgpRbF1Ur9" },
+                    { nome: "Parque Madureira", link: "https://maps.app.goo.gl/Xo7UrFTDhNkUTETt6" },
+                    { nome: "Shopping Madureira", link: "https://maps.app.goo.gl/SXyGS5fBi3XkPbJF6" }
+                ],
+                demanda: {
+                    manha: "Alta",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$36,00/hora",
+                icone: "🚀",
+                tipo: "comercial"
+            },
+            "Flamengo": {
+                pontos: [
+                    { nome: "Praia do Flamengo", link: "https://maps.app.goo.gl/XSYx3sGMJcVhPSTF9" },
+                    { nome: "Aterro do Flamengo", link: "https://maps.app.goo.gl/4JMCMF6ZuKb1JSyL7" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$45,00/hora",
+                icone: "✅",
+                tipo: "misto"
+            },
+            "Recreio dos Bandeirantes": {
+                pontos: [
+                    { nome: "Praia do Recreio - Posto 12", link: "https://maps.app.goo.gl/CPELsZJDCXWARyiz5" },
+                    { nome: "Shopping Recreio", link: "https://maps.app.goo.gl/jfm8CgQMrzELYJK89" }
+                ],
+                demanda: {
+                    manha: "Baixa",
+                    almoco: "Média",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$40,00/hora",
+                icone: "✅",
+                tipo: "residencial"
+            },
+            "Leblon": {
+                pontos: [
+                    { nome: "Praia do Leblon - Posto 11", link: "https://maps.app.goo.gl/edjVJDdyXTR1sBDF9" },
+                    { nome: "Shopping Leblon", link: "https://maps.app.goo.gl/atvQW4wGiHkLNcyE9" },
+                    { nome: "Rua Dias Ferreira", link: "https://maps.app.goo.gl/QHqV6z9Z7MttVtmGA" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Alta"
+                },
+                preco: "R$55,00/hora",
+                icone: "🚀",
+                tipo: "turístico"
+            },
+            "Gávea": {
+                pontos: [
+                    { nome: "Shopping da Gávea", link: "https://maps.app.goo.gl/4xDXtkvVZvQpWwp57" },
+                    { nome: "PUC-Rio", link: "https://maps.app.goo.gl/fG84EiLffxbCyTM68" },
+                    { nome: "Jockey Club Brasileiro", link: "https://maps.app.goo.gl/L8oF2cKy18SKTL7k7" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Alta",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$50,00/hora",
+                icone: "✅",
+                tipo: "misto"
+            },
+            "Jacarepaguá": {
+                pontos: [
+                    { nome: "Barra Square", link: "https://maps.app.goo.gl/1LZtbNYHzuAeGbgw5" },
+                    { nome: "Shopping Metropolitano", link: "https://maps.app.goo.gl/pXWWgGEUWXLJAH8t8" },
+                    { nome: "Freguesia", link: "https://maps.app.goo.gl/6rE5ufGE4dJN9RdL9" }
+                ],
+                demanda: {
+                    manha: "Alta",
+                    almoco: "Média",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$38,00/hora",
+                icone: "🚀",
+                tipo: "residencial"
+            },
+            "São Cristóvão": {
+                pontos: [
+                    { nome: "Feira de São Cristóvão", link: "https://maps.app.goo.gl/1aYK5L81pQD9cGjm9" },
+                    { nome: "Estádio do Maracanã", link: "https://maps.app.goo.gl/SbMRRpmyFPcTdGqv9" },
+                    { nome: "Quinta da Boa Vista", link: "https://maps.app.goo.gl/QcQ2aST75wVYF5wG7" }
+                ],
+                demanda: {
+                    manha: "Média",
+                    almoco: "Média",
+                    tarde: "Alta",
+                    noite: "Alta"
+                },
+                preco: "R$38,00/hora",
+                icone: "✅",
+                tipo: "misto"
+            },
+            "Laranjeiras": {
+                pontos: [
+                    { nome: "Largo do Machado", link: "https://maps.app.goo.gl/ZiVCeRMiSzvyX7Rc7" },
+                    { nome: "Rua das Laranjeiras", link: "https://maps.app.goo.gl/KvW3UUfTWKpBZf5r5" },
+                    { nome: "Parque Guinle", link: "https://maps.app.goo.gl/9C3jP2S59UiV4mP37" }
+                ],
+                demanda: {
+                    manha: "Alta",
+                    almoco: "Média",
+                    tarde: "Alta",
+                    noite: "Média"
+                },
+                preco: "R$45,00/hora",
+                icone: "🚀",
+                tipo: "residencial"
+            }
+        };
+
+        // Função para obter o período do dia atual
+        function getPeriodoAtual() {
+            const hora = new Date().getHours();
+            if (hora >= 5 && hora < 10) return "manha";
+            if (hora >= 12 && hora < 14) return "almoco";
+            if (hora >= 17 && hora < 20) return "tarde";
+            if (hora >= 20 && hora < 23) return "noite";
+            return "outro";
+        }
+
+        // Destacar o período atual
+        function destacarPeriodoAtual() {
+            const periodo = getPeriodoAtual();
+            document.querySelectorAll(".horarios p").forEach(p => p.classList.remove("horario-atual"));
+            
+            if (periodo === "manha") document.getElementById("horario-manha").classList.add("horario-atual");
+            else if (periodo === "almoco") document.getElementById("horario-almoco").classList.add("horario-atual");
+            else if (periodo === "tarde") document.getElementById("horario-tarde").classList.add("horario-atual");
+            else if (periodo === "noite") document.getElementById("horario-noite").classList.add("horario-atual");
+        }
+
+        // Inicialização
+        function inicializar() {
+            destacarPeriodoAtual();
+            
+            // Adicionar event listener para a tecla Enter no campo de texto
+            document.getElementById("bairro").addEventListener("keypress", function(event) {
+                if (event.key === "Enter") {
+                    verificarDemanda();
+                }
+            });
+        }
+
+        // Chamar a função ao carregar a página
+        window.onload = inicializar;
+
+        // Verificar demanda com base no bairro e horário atual
+        function verificarDemanda() {
+            const bairro = document.getElementById("bairro").value.trim();
+            const resultado = document.getElementById("resultado");
+            const enderecosDiv = document.getElementById("enderecos");
+            const horarioRecomendado = document.getElementById("horario-recomendado");
+            const erroDiv = document.getElementById("erro");
+            
+            erroDiv.style.display = "none";
+            enderecosDiv.innerHTML = "";
+            horarioRecomendado.innerHTML = "";
+
+            if (!bairro) {
+                erroDiv.innerHTML = "Por favor, digite um bairro ou use sua localização.";
+                erroDiv.style.display = "block";
+                return;
+            }
+
+            const periodo = getPeriodoAtual();
+            
+            // Realizar busca ignorando acentos e maiúsculas/minúsculas
+            const bairroNormalizado = bairro.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            let bairroEncontrado = null;
+
+            for (const [nomeBairro, dados] of Object.entries(enderecos)) {
+                const nomeNormalizado = nomeBairro.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                if (nomeNormalizado.includes(bairroNormalizado) || bairroNormalizado.includes(nomeNormalizado)) {
+                    bairroEncontrado = nomeBairro;
+                    break;
+                }
+            }
+
+            if (bairroEncontrado) {
+                const info = enderecos[bairroEncontrado];
+                const demandaAtual = periodo !== "outro" ? info.demanda[periodo] : "Média";
+                const demandaIcone = demandaAtual === "Alta" ? "🚀" : demandaAtual === "Média" ? "✅" : "⚠️";
+                
+                resultado.innerHTML = `${demandaIcone} <strong>${bairroEncontrado}</strong>: ${demandaAtual} demanda agora - Aceite corridas a partir de ${info.preco}`;
+
+                // Mostrar pontos estratégicos
+                if (info.pontos.length > 0) {
+                    enderecosDiv.innerHTML = "<strong>🚗 Pontos estratégicos recomendados:</strong><br>";
+                    info.pontos.forEach(local => {
+                        enderecosDiv.innerHTML += `<p>• <a href="${local.link}" target="_blank">${local.nome}</a></p>`;
+                    });
+                }
+
+                // Mostrar recomendações de horário
+                if (periodo === "outro") {
+                    let melhorPeriodo = "manha";
+                    for (const [per, dem] of Object.entries(info.demanda)) {
+                        if (dem === "Alta") {
+                            melhorPeriodo = per;
+                            break;
+                        }
+                    }
+                    
+                    const horarios = {
+                        manha: "5h às 10h",
+                        almoco: "12h às 14h",
+                        tarde: "17h às 20h",
+                        noite: "20h às 23h"
+                    };
+
+                    horarioRecomendado.innerHTML = `<p class="destaque">⏰ Melhor horário para este bairro: <strong>${horarios[melhorPeriodo]}</strong></p>`;
+                }
+            } else {
+                resultado.innerHTML = `⚠️ <strong>${bairro}</strong>: Bairro não encontrado em nossa base. Considere aceitar corridas acima de R$35,00/hora.`;
+                horarioRecomendado.innerHTML = `<p class="destaque">🔍 Sugestão: Verifique se há pontos de interesse ou hotéis próximos.</p>`;
+            }
+        }
+
+        // Função para confirmar demanda alta
+        function confirmarDemanda() {
+            const bairro = document.getElementById("bairro").value.trim();
+            if (!bairro) {
+                document.getElementById("erro").innerHTML = "Por favor, digite um bairro antes de confirmar a demanda.";
+                document.getElementById("erro").style.display = "block";
+                return;
+            }
+            alert(`Obrigado pelo feedback! Sua confirmação de alta demanda em ${bairro} ajudará outros motoristas.`);
+        }
+
+        // Função para usar localização
+        function usarLocalizacao() {
+            if (navigator.geolocation) {
+                const bairroInput = document.getElementById("bairro");
+                const erroDiv = document.getElementById("erro");
+                erroDiv.style.display = "none";
+                
+                bairroInput.value = "Localizando...";
+                bairroInput.disabled = true;
+                
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        
+                        // Usar a API do Nominatim para obter o nome do bairro
+                        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`)
+                            .then(response => response.json())
+                            .then(data => {
+                                let bairroDetectado = "";
+                                
+                                // Tentar encontrar o bairro nos dados de endereço
+                                if (data.address) {
+                                    if (data.address.suburb) {
+                                        bairroDetectado = data.address.suburb;
+                                    } else if (data.address.neighbourhood) {
+                                        bairroDetectado = data.address.neighbourhood;
+                                    } else if (data.address.city_district) {
+                                        bairroDetectado = data.address.city_district;
+                                    } else if (data.address.district) {
+                                        bairroDetectado = data.address.district;
+                                    }
+                                }
+                                
+                                bairroInput.value = bairroDetectado || "Localização detectada";
+                                bairroInput.disabled = false;
+                                
+                                // Verificar demanda automaticamente
+                                if (bairroDetectado) {
+                                    verificarDemanda();
+                                }
+                            })
+                            .catch(error => {
+                                bairroInput.value = "";
+                                bairroInput.disabled = false;
+                                erroDiv.innerHTML = "Não foi possível determinar seu bairro. Por favor, digite manualmente.";
+                                erroDiv.style.display = "block";
+erroDiv.innerHTML = "Não foi possível determinar seu bairro. Por favor, digite manualmente.";
+                                erroDiv.style.display = "block";
+                            });
+                    },
+                    error => {
+                        bairroInput.value = "";
+                        bairroInput.disabled = false;
+                        
+                        let mensagemErro = "Erro ao obter sua localização. ";
+                        
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                mensagemErro += "Você precisa permitir o acesso à sua localização.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                mensagemErro += "Informações de localização indisponíveis.";
+                                break;
+                            case error.TIMEOUT:
+                                mensagemErro += "Tempo esgotado ao tentar obter sua localização.";
+                                break;
+                            default:
+                                mensagemErro += "Ocorreu um erro desconhecido.";
+                                break;
+                        }
+                        
+                        erroDiv.innerHTML = mensagemErro;
+                        erroDiv.style.display = "block";
+                    }
+                );
+            } else {
+                document.getElementById("erro").innerHTML = "Seu navegador não suporta geolocalização.";
+                document.getElementById("erro").style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>
